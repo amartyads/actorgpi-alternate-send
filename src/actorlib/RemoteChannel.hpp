@@ -129,7 +129,8 @@ template<typename T, int capacity> std::vector<T> RemoteChannel <std::vector<T>,
     vecSize = bytesUsed / sizeof(T);
     elemsPerFullCache = this->minBlockSize / sizeof(T);
     int64_t copyOfPulledDataOffset = this->pulledDataoffset;
-    
+    gaspi_printf("Pulled offset:  %" PRId64 "\n", pulledDataoffset);
+    gaspi_printf("Pulled size:  %" PRIu64 "\n", bytesUsed);
     //gaspi read from databank offset, of amount bytesUsed, minBlocksize at a time
     for(uint64_t i = 0; i < this->noOfDatablocksUsed; i++)
     {
@@ -333,6 +334,10 @@ template <typename T, int capacity> void RemoteChannel <std::vector<T>, capacity
     uint64_t bytesUsed = ndata.size() * sizeof(T);
     /*auto sizePtr = (uint64_t *)(this->fixedVecSizeInitPtr);
     sizePtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = bytesUsed;*/
+
+    gaspi_printf("Sending offset:  %" PRId64 "\n", localDatabankOffset);
+    gaspi_printf("Sending size:  %" PRIu64 "\n", bytesUsed);
+
 
     //gaspi write trigger to remote actorgraph
     ((uint64_t *)(this->cachePtr))[0] = this->dstID; //trigger
