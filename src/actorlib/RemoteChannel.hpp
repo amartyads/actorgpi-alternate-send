@@ -90,14 +90,17 @@ template<typename T, int capacity> std::vector<T> RemoteChannel <std::vector<T>,
 {
     //data availability already checked
     //std::cout << "in pull Max queue: " << this->maxQueueSize << " cur queue: " << this->curQueueSize << std::endl;
-    gpi_util::wait_for_queue_entries(&queue_id, 1);
+   /* gpi_util::wait_for_queue_entries(&queue_id, 1);
     ASSERT (gaspi_read ( 4, 0
                         , this->remoteRank, 0, ((this->fixedDataOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
                         , sizeof(uint64_t), queue_id, GASPI_BLOCK
                         )
             );
     ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
-    pulledDataoffset = ((int64_t *)(this->cachePtr))[0];
+    pulledDataoffset = ((int64_t *)(this->cachePtr))[0];*/
+    auto commPtr = (int64_t *)(this->fixedCommInitPtr);
+    pulledDataoffset = commPtr[(this->fixedTriggerOffset * this->maxQueueSize) + queueLocation];
+    commPtr[(this->fixedTriggerOffset * this->maxQueueSize) + queueLocation] = -1;
     //std::cout << pulledDataoffset << std::endl;
 
     if(pulledDataoffset == -1)
@@ -106,14 +109,16 @@ template<typename T, int capacity> std::vector<T> RemoteChannel <std::vector<T>,
 
     //read from no of datablock offset
     uint64_t bytesUsed;
-    gpi_util::wait_for_queue_entries(&queue_id, 1);
+    auto sizePtr = (uint64_t *)(this->fixedVecSizeInitPtr);
+    bytesUsed = sizePtr[(this->fixedTriggerOffset * this->maxQueueSize) + queueLocation];
+    /*gpi_util::wait_for_queue_entries(&queue_id, 1);
     ASSERT (gaspi_read ( 4, 0
                         , this->remoteRank, 5, ((this->fixedDataOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
                         , sizeof(uint64_t), queue_id, GASPI_BLOCK
                         )
             );
     ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
-    bytesUsed = ((uint64_t *)(this->cachePtr))[0];
+    bytesUsed = ((uint64_t *)(this->cachePtr))[0];*/
 
     //calc no of datablocks
     this->noOfDatablocksUsed = ((bytesUsed - 1) / this->minBlockSize) + 1;
@@ -146,18 +151,11 @@ template<typename T, int capacity> std::vector<T> RemoteChannel <std::vector<T>,
     
     //gaspi write to localClear the databank offset, local actorgraph will divide by blocksize
     ((int64_t *)(this->cachePtr))[0] = pulledDataoffset;
-    ((int64_t *)(this->cachePtr))[1] = -1;
     //gaspi write to localClear the databank offset, local actorgraph will divide by blocksize
-    gpi_util::wait_for_queue_entries(&queue_id, 2);
+    gpi_util::wait_for_queue_entries(&queue_id, 1);
     ASSERT (gaspi_write ( 4, 0
                         , this->remoteRank, 1, ((this->fixedDataOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
                         , sizeof(uint64_t), queue_id, GASPI_BLOCK
-                        )
-            );
-    //gaspi write to comm segment, free up the area
-    ASSERT (gaspi_write ( 4, sizeof(int64_t)
-                        , this->remoteRank, 0, ((this->fixedDataOffset * this->maxQueueSize) + queueLocation) *sizeof(int64_t)
-                        , sizeof(int64_t), queue_id, GASPI_BLOCK
                         )
             );
     ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
@@ -173,30 +171,35 @@ template<typename T, int capacity> std::vector<T> RemoteChannel <std::vector<T>,
 template <typename T, int capacity> T RemoteChannel <T, capacity> :: pullData()
 {
     //data availability already checked
-    gpi_util::wait_for_queue_entries(&queue_id, 1);
+    /*gpi_util::wait_for_queue_entries(&queue_id, 1);
     ASSERT (gaspi_read ( 4, 0
                         , this->remoteRank, 0, ((this->fixedDataOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
                         , sizeof(uint64_t), queue_id, GASPI_BLOCK
                         )
             );
     ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
-    pulledDataoffset = ((int64_t *)(this->cachePtr))[0];
+    pulledDataoffset = ((int64_t *)(this->cachePtr))[0];*/
     //std::cout << pulledDataoffset << std::endl;
-    
+    auto commPtr = (int64_t *)(this->fixedCommInitPtr);
+    pulledDataoffset = commPtr[(this->fixedTriggerOffset * this->maxQueueSize) + queueLocation];
+    commPtr[(this->fixedTriggerOffset * this->maxQueueSize) + queueLocation] = -1;
+
     if(pulledDataoffset == -1)
         throw std::runtime_error("No data in channel");
     //gaspi read from fixedoffset * sizeof uint64_t for databank ofset (was in isavailabletopull)
 
     //read from no of datablock offset
     uint64_t bytesUsed;
-    gpi_util::wait_for_queue_entries(&queue_id, 1);
+    auto sizePtr = (uint64_t *)(this->fixedVecSizeInitPtr);
+    bytesUsed = sizePtr[(this->fixedTriggerOffset * this->maxQueueSize) + queueLocation];
+    /*gpi_util::wait_for_queue_entries(&queue_id, 1);
     ASSERT (gaspi_read ( 4, 0
                         , this->remoteRank, 5, ((this->fixedDataOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
                         , sizeof(uint64_t), queue_id, GASPI_BLOCK
                         )
             );
     ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
-    bytesUsed = ((uint64_t *)(this->cachePtr))[0];
+    bytesUsed = ((uint64_t *)(this->cachePtr))[0];*/
 
     //calc no of datablocks
     this->noOfDatablocksUsed = ((bytesUsed - 1) / this->minBlockSize) + 1;
@@ -221,20 +224,20 @@ template <typename T, int capacity> T RemoteChannel <T, capacity> :: pullData()
         readData.push_back(((T *)(this->cachePtr))[0]);
     }
     ((int64_t *)(this->cachePtr))[0] = pulledDataoffset;
-    ((int64_t *)(this->cachePtr))[1] = -1;
+    //((int64_t *)(this->cachePtr))[1] = -1;
     //gaspi write to localClear the databank offset, local actorgraph will divide by blocksize
-    gpi_util::wait_for_queue_entries(&queue_id, 2);
+    gpi_util::wait_for_queue_entries(&queue_id, 1);
     ASSERT (gaspi_write ( 4, 0
                         , this->remoteRank, 1, ((this->fixedDataOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
                         , sizeof(uint64_t), queue_id, GASPI_BLOCK
                         )
             );
     //gaspi write to comm segment, free up the area
-    ASSERT (gaspi_write ( 4, sizeof(int64_t)
+    /*ASSERT (gaspi_write ( 4, sizeof(int64_t)
                         , this->remoteRank, 0, ((this->fixedDataOffset * this->maxQueueSize) + queueLocation) *sizeof(int64_t)
                         , sizeof(int64_t), queue_id, GASPI_BLOCK
                         )
-            );
+            );*/
     ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
     
     pulledDataoffset = -1;
@@ -285,9 +288,7 @@ template <typename T, int capacity> void RemoteChannel <std::vector<T>, capacity
     }
     //multiply index with minblocksize
     uint64_t localDatabankOffset = slot * this->minBlockSize; //blocksize includes sizeof
-    //write to (localCommPtr) + fixedoffset * uint64 the databank offset (index*minblocksize)
-    auto commPtr = (uint64_t *)(this->fixedCommInitPtr);
-    commPtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = localDatabankOffset;
+    
     //write to databank (localdataptr + index*minblock)
 
     //must split ndata into mindatablock sizes so as to not split data across edge
@@ -321,23 +322,39 @@ template <typename T, int capacity> void RemoteChannel <std::vector<T>, capacity
             }
         }
     }
+
     
+    
+    //write to (localCommPtr) + fixedoffset * uint64 the databank offset (index*minblocksize)
+    /*auto commPtr = (uint64_t *)(this->fixedCommInitPtr);
+    commPtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = localDatabankOffset;*/
+
     //write to vec size segment
-    uint64_t bytesUsed;
-    bytesUsed = ndata.size() * sizeof(T);
-    auto sizePtr = (uint64_t *)(this->fixedVecSizeInitPtr);
-    sizePtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = bytesUsed;
+    uint64_t bytesUsed = ndata.size() * sizeof(T);
+    /*auto sizePtr = (uint64_t *)(this->fixedVecSizeInitPtr);
+    sizePtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = bytesUsed;*/
 
     //gaspi write trigger to remote actorgraph
+    ((uint64_t *)(this->cachePtr))[0] = this->dstID; //trigger
+    ((uint64_t *)(this->cachePtr))[1] = this->localDatabankOffset; //dataloc
+    ((uint64_t *)(this->cachePtr))[2] = bytesUsed; //vecsize
 
-   
-    gpi_util::wait_for_queue_entries(&queue_id, 1);
-    ((uint64_t *)(this->cachePtr))[0] = this->dstID;
+    gpi_util::wait_for_queue_entries(&queue_id, 3);
+    ASSERT (gaspi_write ( 4, sizeof(uint64_t)
+                        , this->remoteRank, 0, ((this->fixedTriggerOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
+                        , sizeof(uint64_t), queue_id, GASPI_BLOCK
+                        )
+            );
+    ASSERT (gaspi_write ( 4, sizeof(uint64_t) * 2
+                        , this->remoteRank, 5, ((this->fixedTriggerOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
+                        , sizeof(uint64_t), queue_id, GASPI_BLOCK
+                        )
+            );
     ASSERT (gaspi_write ( 4, 0
                         , this->remoteRank, 2, ((this->fixedTriggerOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
                         , sizeof(uint64_t), queue_id, GASPI_BLOCK
                         )
-            );
+            );   //write trigger last to make sure other info already there
 
     ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
     queueLocation++;
@@ -370,32 +387,47 @@ template <typename T, int capacity> void RemoteChannel <T, capacity> :: pushData
     }
     //multiply index with minblocksize
     uint64_t localDatabankOffset = slot * this->minBlockSize; //blocksize includes sizeof
-    //write to (localCommPtr) + fixedoffset * uint64 the databank offset (index*minblocksize)
-    auto commPtr = (uint64_t *)(this->fixedCommInitPtr);
-    commPtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = localDatabankOffset;
+    
     //write to databank (localdataptr + index*minblock)
     gaspi_pointer_t tempData = ((char*)(this->fixedDatabankInitPtr))  + localDatabankOffset;
 
     ((T *)(tempData))[0] = ndata;
 
     //write to vec size segment
-    gpi_util::wait_for_queue_entries(&queue_id, 2);
-    uint64_t bytesUsed;
+    gpi_util::wait_for_queue_entries(&queue_id, 3);
 
-    bytesUsed = sizeof(T);
+    //write to (localCommPtr) + fixedoffset * uint64 the databank offset (index*minblocksize)
+    /*auto commPtr = (uint64_t *)(this->fixedCommInitPtr);
+    commPtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = localDatabankOffset;*/
+    
+    uint64_t bytesUsed = sizeof(T);
 
-    auto sizePtr = (uint64_t *)(this->fixedVecSizeInitPtr);
-    sizePtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = bytesUsed;
+    /*auto sizePtr = (uint64_t *)(this->fixedVecSizeInitPtr);
+    sizePtr[(this->fixedDataOffset * this->maxQueueSize) + queueLocation] = bytesUsed;*/
 
     //gaspi write trigger to remote actorgraph
 
    
-    ((uint64_t *)(this->cachePtr))[0] = this->dstID;
+    ((uint64_t *)(this->cachePtr))[0] = this->dstID; //trigger
+    ((uint64_t *)(this->cachePtr))[1] = this->localDatabankOffset; //dataloc
+    ((uint64_t *)(this->cachePtr))[2] = bytesUsed; //vecsize
+
+    gpi_util::wait_for_queue_entries(&queue_id, 3);
+    ASSERT (gaspi_write ( 4, sizeof(uint64_t)
+                        , this->remoteRank, 0, ((this->fixedTriggerOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
+                        , sizeof(uint64_t), queue_id, GASPI_BLOCK
+                        )
+            );
+    ASSERT (gaspi_write ( 4, sizeof(uint64_t) * 2
+                        , this->remoteRank, 5, ((this->fixedTriggerOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
+                        , sizeof(uint64_t), queue_id, GASPI_BLOCK
+                        )
+            );
     ASSERT (gaspi_write ( 4, 0
                         , this->remoteRank, 2, ((this->fixedTriggerOffset * this->maxQueueSize) + queueLocation) *sizeof(uint64_t)
                         , sizeof(uint64_t), queue_id, GASPI_BLOCK
                         )
-            );
+            );   //write trigger last to make sure other info already there
 
     ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
     queueLocation++;
@@ -407,23 +439,16 @@ template <typename T, int capacity> uint64_t RemoteChannel <T, capacity> :: isAv
 {
     //std::cout << this->fixedDataOffset << " " << queueLocation << " rem " << this->remoteRank << std::endl;
     //gaspi read databank offsets
-    gpi_util::wait_for_queue_entries(&queue_id, 1);
-    ASSERT (gaspi_read ( 4, 0
-                        , this->remoteRank, 0, (this->fixedDataOffset * this->maxQueueSize) *sizeof(int64_t)
-                        , this->maxQueueSize * sizeof(int64_t), queue_id, GASPI_BLOCK
-                        )
-            );
-    ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
     
     //std::stringstream ss;
     int totElements = 0;
     //ss << "At dest " << this->dstID << ": ";
-    int64_t* scan = (int64_t *)(this->cachePtr);
+    int64_t* scan = (int64_t *)(this->fixedCommInitPtr);
     for(int i = 0; i < this->maxQueueSize; i++)
     {
-        if(scan[i] != -1)
+        if(scan[(this->fixedTriggerOffset * this->maxQueueSize) + i] != -1)
             totElements++;
-      //  ss << scan[i] << " ";
+    //    ss << scan[i] << " ";
     }
     //std::cout << "At dest " << this->dstID << " readables: " << totElements << std::endl;
     //ss << std::endl;
@@ -459,20 +484,13 @@ template <typename T, int capacity> uint64_t RemoteChannel <std::vector<T>, capa
 {
     //std::cout << this->fixedDataOffset << " " << queueLocation << " rem " << this->remoteRank << std::endl;
     //gaspi read databank offset
-    gpi_util::wait_for_queue_entries(&queue_id, 1);
-    ASSERT (gaspi_read ( 4, 0
-                        , this->remoteRank, 0, (this->fixedDataOffset * this->maxQueueSize) *sizeof(int64_t)
-                        , this->maxQueueSize * sizeof(int64_t), queue_id, GASPI_BLOCK
-                        )
-            );
-    ASSERT (gaspi_wait (queue_id, GASPI_BLOCK));
     int totElements = 0;
     //std::stringstream ss;
     //ss << "At dest " << this->dstID << ":";
-    int64_t* scan = (int64_t *)(this->cachePtr);
+    int64_t* scan = (int64_t *)(this->fixedCommInitPtr);
     for(int i = 0; i < this->maxQueueSize; i++)
     {
-        if(scan[i] != -1)
+        if(scan[(this->fixedTriggerOffset * this->maxQueueSize) + i] != -1)
             totElements++;
     //    ss << scan[i] << " ";
     }
