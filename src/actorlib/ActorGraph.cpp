@@ -423,7 +423,7 @@ void ActorGraph::finalizeInitialization()
 	//std::cout << "rank " <<threadRank << " segs made" <<std::endl;
 	//reset lookup table
 	int64_t *lookupPtr = (int64_t *) gasptrRemoteLookup;
-	for(uint64_t i = 0; i < noLocalRemoteChannels * dataQueueLen; i++)
+	for(uint64_t i = 0; i < noRemoteLocalChannels * dataQueueLen; i++)
 	{
 		lookupPtr[i] = -1;
 	}
