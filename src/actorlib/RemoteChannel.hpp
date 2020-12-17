@@ -336,7 +336,7 @@ template <typename T, int capacity> void RemoteChannel <std::vector<T>, capacity
 
     //gaspi write trigger to remote actorgraph
     ((uint64_t *)(this->cachePtr))[0] = this->dstID; //trigger
-    ((uint64_t *)(this->cachePtr))[1] = this->localDatabankOffset; //dataloc
+    ((uint64_t *)(this->cachePtr))[1] = localDatabankOffset; //dataloc
     ((uint64_t *)(this->cachePtr))[2] = bytesUsed; //vecsize
 
     gpi_util::wait_for_queue_entries(&queue_id, 3);
@@ -409,7 +409,7 @@ template <typename T, int capacity> void RemoteChannel <T, capacity> :: pushData
 
    
     ((uint64_t *)(this->cachePtr))[0] = this->dstID; //trigger
-    ((uint64_t *)(this->cachePtr))[1] = this->localDatabankOffset; //dataloc
+    ((uint64_t *)(this->cachePtr))[1] = localDatabankOffset; //dataloc
     ((uint64_t *)(this->cachePtr))[2] = bytesUsed; //vecsize
 
     gpi_util::wait_for_queue_entries(&queue_id, 3);
