@@ -444,9 +444,10 @@ template <typename T, int capacity> uint64_t RemoteChannel <T, capacity> :: isAv
     int totElements = 0;
     //ss << "At dest " << this->dstID << ": ";
     int64_t* scan = (int64_t *)(this->fixedCommInitPtr);
+    scan += this->fixedTriggerOffset * this->maxQueueSize;
     for(int i = 0; i < this->maxQueueSize; i++)
     {
-        if(scan[(this->fixedTriggerOffset * this->maxQueueSize) + i] != -1)
+        if(scan[i] != -1)
             totElements++;
     //    ss << scan[i] << " ";
     }
@@ -488,9 +489,10 @@ template <typename T, int capacity> uint64_t RemoteChannel <std::vector<T>, capa
     //std::stringstream ss;
     //ss << "At dest " << this->dstID << ":";
     int64_t* scan = (int64_t *)(this->fixedCommInitPtr);
+    scan += this->fixedTriggerOffset * this->maxQueueSize;
     for(int i = 0; i < this->maxQueueSize; i++)
     {
-        if(scan[(this->fixedTriggerOffset * this->maxQueueSize) + i] != -1)
+        if(scan[i] != -1)
             totElements++;
     //    ss << scan[i] << " ";
     }
